@@ -216,7 +216,7 @@ def read_pdf_with_pdfplumber(pdf_url):
 
     with pdfplumber.open(io.BytesIO(response.content)) as pdf:
         for i, page in enumerate(pdf.pages):
-            if i >= 10:
+            if i >= 7:
                 break  # Beende nach 10 Seiten
             text = page.extract_text()
             if text:  # Nur nicht-leere Seiten
