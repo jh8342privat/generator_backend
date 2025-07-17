@@ -413,7 +413,7 @@ def verarbeite_deutsche_abstimmungen(abstimmungen, deutsche_meps, parteireihenfo
         result[entscheidung].sort(key=sort_key)
 
     return result
-def draw_block(draw, persons, label, y_offset, icon_color, font, font2, font3, logos):
+def draw_block(img, draw, persons, label, y_offset, icon_color, font, font2, font3, logos):
     draw.rectangle([PADDING, y_offset - 2, PADDING + 10, y_offset + ICON_SIZE ], fill=icon_color)
     draw.text((PADDING + REC_SIZE + 13, y_offset), label, fill=icon_color, font=font2)
     
@@ -462,6 +462,7 @@ def draw_block(draw, persons, label, y_offset, icon_color, font, font2, font3, l
                     # Logo
                 if logo:
                     img.paste(logo, (x + REC_SIZE + 250 - logo.width, y), logo)
+                    
 
     return y_offset + rows * LINE_HEIGHT + LINE_HEIGHT
 
@@ -512,8 +513,9 @@ def wrap_text(text, font, max_width, draw):
     return lines
 
 
-def generate_image(data, output_path="sharepic.png"):
-    #size4 = st.slider("Größe der Überschrift", min_value=0, max_value=100, value=42)
+
+
+def generate_image_bytes(data):
     size4 = 42
     font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
     font4 = ImageFont.truetype(FONT2, size4)
@@ -521,33 +523,35 @@ def generate_image(data, output_path="sharepic.png"):
     font3 = ImageFont.truetype(FONT_PATH, round(FONT_SIZE *0.8))
     logos = load_logos()
 
-    # Höhe grob schätzen
     total_people = sum(len(data[k]) for k in ["ja", "nein", "enthaltung"])
     estimated_height = 1200 
-    global img
     img = Image.new("RGBA", (1200, estimated_height), "white")
     draw = ImageDraw.Draw(img)
 
-    # Überschrift
     wrapped_lines = wrap_text(data['title'], font4, img.width - 2 * PADDING, draw)
-
     y = PADDING 
+
     for line in wrapped_lines:
         bbox = draw.textbbox((0, 0), line, font=font4)
         line_width = bbox[2] - bbox[0]
-        x1 = (img.width - line_width) // 2  # zentriert
+        x1 = (img.width - line_width) // 2
         draw.text((x1, y), line, fill="black", font=font4)
         y += LINE_HEIGHT + round(size4 / 4)
-    y = (PADDING + round(size4 / 2.8)) * len(wrapped_lines) + LINE_HEIGHT * 2 
 
-    # Blöcke zeichnen
-    y = draw_block(draw, data["ja"], "DAFÜR", y, COLOR_MAP["ja"], font, font2, font3, logos)
-    y = draw_block(draw, data["nein"], "DAGEGEN", y, COLOR_MAP["nein"], font, font2, font3, logos)
-    y = draw_block(draw, data["enthaltung"], "ENTHALTEN", y, COLOR_MAP["enthaltung"], font, font2, font3, logos)
-    y = draw_block(draw, data["nicht_abgestimmt"], "NICHT ABGESTIMMT", y, COLOR_MAP["nicht_abgestimmt"], font, font2, font3, logos)
+    y = (PADDING + round(size4 / 2.8)) * len(wrapped_lines) + LINE_HEIGHT * 2 
+    y = draw_block(img, draw, data["ja"], "DAFÜR", y, COLOR_MAP["ja"], font, font2, font3, logos)
+    y = draw_block(img, draw, data["nein"], "DAGEGEN", y, COLOR_MAP["nein"], font, font2, font3, logos)
+    y = draw_block(img, draw, data["enthaltung"], "ENTHALTEN", y, COLOR_MAP["enthaltung"], font, font2, font3, logos)
+    y = draw_block(img, draw, data["nicht_abgestimmt"], "NICHT ABGESTIMMT", y, COLOR_MAP["nicht_abgestimmt"], font, font2, font3, logos)
 
     img = img.crop((0, 0, img.width, y + 2 * LINE_HEIGHT))  # Bild kürzen
-    img.save(output_path)
+
+    # 📌 Bild als Bytes zurückgeben:
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+    return buffer
+
 
 def übersetze_keys(abstimmungs_dict):
     key_mapping = {
@@ -563,15 +567,12 @@ def übersetze_keys(abstimmungs_dict):
     }
 
 def process_abstimmung(punkt, tag, titel):
-    # Holt Daten
     xml_link = pdf_finden(url, tag)[1]
     vote_results = parse_vote_results_from_url(xml_link)
     mep_link = "https://www.europarl.europa.eu/meps/de/download/advanced/xml?countryCode=DE"
     mep_dict = parse_meps_from_url(mep_link)
 
     s = re.sub(r'^\d+\.\d+\s+', '', punkt)
-    print(titel)
-    print(type(titel))
     ergebnis = verarbeite_deutsche_abstimmungen(
         abstimmungen=vote_results,
         deutsche_meps=mep_dict,
@@ -581,6 +582,6 @@ def process_abstimmung(punkt, tag, titel):
     )
     auswertung = übersetze_keys(ergebnis)
 
-    # Bild erzeugen
-    generate_image(auswertung, "sharepic.png")
-    return "sharepic.png"
+    # Rückgabe als Byte-Stream statt Dateipfad
+    return generate_image_bytes(auswertung)
+
