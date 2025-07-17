@@ -216,11 +216,14 @@ def read_pdf_with_pdfplumber(pdf_url):
 
     with pdfplumber.open(io.BytesIO(response.content)) as pdf:
         for i, page in enumerate(pdf.pages):
+            if i >= 10:
+                break  # Beende nach 10 Seiten
             text = page.extract_text()
             if text:  # Nur nicht-leere Seiten
                 all_text.append(text)
 
     return "\n\n".join(all_text)
+    
     
 
 def parse_inhaltsverzeichnis(text):
