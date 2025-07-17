@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, Response
 from fastapi.middleware.cors import CORSMiddleware
 from logic import *  # <- Trenne deine Logik in eine andere Datei
 from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 import uvicorn
 from pydantic import BaseModel
 
@@ -15,9 +16,9 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8001", "http://localhost:5173",
-    "http://127.0.0.1:5173", "https://aldo597.github.io/generator/", "https://aldo597.github.io"],
-    #allow_origins=["*"],  # Erlaube alle Ursprünge für CORS
+    #allow_origins=["http://localhost:8001", "http://localhost:5173",
+    #"http://127.0.0.1:5173", "https://aldo597.github.io/generator/", "https://aldo597.github.io"],
+    allow_origins=["*"],  # Erlaube alle Ursprünge für CORS
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,8 +49,8 @@ def get_punkte(tag: str):
 @app.post("/bild")
 def bild_generieren(body: BildRequest):
     print("Titel empfangen:", body.titel)
-    img_path = process_abstimmung(body.punkt, body.tag, body.titel)
-    return FileResponse(img_path, media_type="image/png")
+    img_buffer = process_abstimmung(body.punkt, body.tag, body.titel)
+    return StreamingResponse(img_buffer, media_type="image/png")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
